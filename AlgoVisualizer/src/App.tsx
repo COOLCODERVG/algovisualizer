@@ -576,4 +576,405 @@ const App: React.FC = () => {
     setIsPlaying(false);
   }, [arraySize, algorithm, mode]);
 
-  
+  // On algorithm or mode change, if Bitonic Sort, adjust array size to power of two
+  useEffect(() => {
+    if (algorithm === 'bitonic' && mode === 'sort') {
+      const pow2 = nextPowerOfTwo(arraySize);
+      if (arraySize !== pow2) {
+        setBitonicWarning(`Bitonic Sort requires array size to be a power of two. Adjusted to ${pow2}.`);
+        setArraySize(pow2);
+        return;
+      } else {
+        setBitonicWarning(null);
+      }
+    } else {
+      setBitonicWarning(null);
+    }
+  }, [algorithm, mode, arraySize]);
+
+  // Play/Pause effect
+  useEffect(() => {
+    playRef.current = isPlaying;
+    if (isPlaying) {
+      if (currentStep >= steps.length - 1) {
+        setIsPlaying(false);
+        return;
+      }
+      const timer = setTimeout(() => {
+        if (playRef.current && currentStep < steps.length - 1) {
+          setCurrentStep((s) => s + 1);
+        } else {
+          setIsPlaying(false);
+        }
+      }, Math.max(10, 200 - speed));
+      return () => clearTimeout(timer);
+    }
+  }, [isPlaying, currentStep, steps.length, speed]);
+
+  // Update array on step change
+  useEffect(() => {
+    if (steps.length > 0) {
+      setArray(steps[currentStep].bars);
+    }
+  }, [currentStep, steps]);
+
+  // Track analytics during playback
+  useEffect(() => {
+    if (steps.length === 0) return;
+    let comparisons = 0, swaps = 0;
+    for (let i = 0; i <= currentStep; i++) {
+      const s = steps[i];
+      if (s.comparing) comparisons++;
+      if (s.swapped) swaps++;
+    }
+    setAnalytics(a => ({ ...a, comparisons, swaps }));
+  }, [currentStep, steps]);
+
+  // Track time elapsed
+  useEffect(() => {
+    let timer: any;
+    if (isPlaying) {
+      if (startTime === null) setStartTime(Date.now());
+      timer = setInterval(() => {
+        setAnalytics(a => ({ ...a, time: startTime ? Math.floor((Date.now() - startTime) / 1000) : 0 }));
+      }, 200);
+    } else {
+      clearInterval(timer);
+    }
+    return () => clearInterval(timer);
+  }, [isPlaying, startTime]);
+
+  // Reset analytics and timer on reset/shuffle/algorithm change
+  useEffect(() => {
+    setAnalytics(getInitialAnalytics());
+    setStartTime(null);
+  }, [arraySize, algorithm, mode, currentStep === 0]);
+
+  // Controls
+  const handlePlay = () => {
+    if (currentStep >= steps.length - 1) return;
+    setIsPlaying(true);
+  };
+  const handlePause = () => setIsPlaying(false);
+  const handleStep = () => {
+    if (currentStep < steps.length - 1) setCurrentStep((s) => s + 1);
+  };
+  const handleReset = () => {
+    let arr = generateArray(arraySize);
+    let t = searchTarget;
+    if (mode === 'search') {
+      t = pickRandomTarget(arr);
+      setSearchTarget(t);
+      arr = ensureValueInArray(arr, t);
+      setArray(arr);
+    } else {
+      setArray(arr);
+    }
+    const s = buildSteps(arr, t);
+    setSteps(s);
+    setCurrentStep(0);
+    setIsPlaying(false);
+  };
+  const handleShuffle = () => {
+    let arr = shuffleArray(array);
+    let t = searchTarget;
+    if (mode === 'search') {
+      t = pickRandomTarget(arr);
+      setSearchTarget(t);
+      arr = ensureValueInArray(arr, t);
+      setArray(arr);
+    } else {
+      setArray(arr);
+    }
+    const s = buildSteps(arr, t);
+    setSteps(s);
+    setCurrentStep(0);
+    setIsPlaying(false);
+  };
+  const handleArraySizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setArraySize(Number(e.target.value));
+  };
+  const handleSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSpeed(Number(e.target.value));
+  };
+  const handleModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setMode(e.target.value as 'sort' | 'search');
+    setAlgorithm(e.target.value === 'sort' ? 'bubble' : 'linear');
+  };
+  const handleAlgorithmChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setAlgorithm(e.target.value);
+  };
+  const handleSearchTargetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = Number(e.target.value);
+    let arr = array;
+    if (!arr.some(bar => bar.value === val)) {
+      arr = ensureValueInArray(arr, val);
+      setArray(arr);
+    }
+    setSearchTarget(val);
+    const s = buildSteps(arr, val);
+    setSteps(s);
+    setCurrentStep(0);
+    setIsPlaying(false);
+  };
+
+  // Helper to get the correct generator for the selected algorithm
+  function getStepGenerator(mode: 'sort' | 'search', algo: string, arr: number[], target: number) {
+    switch (mode) {
+      case 'sort':
+        switch (algo) {
+          case 'bubble': return bubbleSortSteps(arr);
+          case 'selection': return selectionSortSteps(arr);
+          case 'insertion': return insertionSortSteps(arr);
+          case 'merge': return mergeSortSteps(arr);
+          case 'quick': return quickSortSteps(arr);
+          case 'heap': return heapSortSteps(arr);
+          case 'gnome': return gnomeSortSteps(arr);
+          case 'pancake': return pancakeSortSteps(arr);
+          case 'comb': return combSortSteps(arr);
+          case 'oddEven': return oddEvenSortSteps(arr);
+          case 'shell': return shellSortSteps(arr);
+          case 'bitonic': return bitonicSortSteps(arr);
+          case 'bogo': return bogoSortSteps(arr);
+          case 'radix': return radixSortSteps(arr);
+          case 'decide': return decideSortSteps(arr);
+          case 'saltShaker': return saltShakerSortSteps(arr);
+          default: return bubbleSortSteps(arr);
+        }
+      case 'search':
+        switch (algo) {
+          case 'linear': return linearSearchSteps(arr, target);
+          case 'binary': return binarySearchSteps(arr, target);
+          case 'jump': return jumpSearchSteps(arr, target);
+          case 'interpolation': return interpolationSearchSteps(arr, target);
+          case 'exponential': return exponentialSearchSteps(arr, target);
+          case 'fibonacci': return fibonacciSearchSteps(arr, target);
+          default: return linearSearchSteps(arr, target);
+        }
+      default:
+        return bubbleSortSteps(arr);
+    }
+  }
+
+  // Enhanced getBarColor for all algorithms and states
+  function getBarColor(idx: number, step: any, mode: string, algorithm: string): string {
+    if (!step) return COLORS.normal;
+    // Sorting
+    if (mode === 'sort') {
+      if (step.sortedIndices && step.sortedIndices.includes(idx)) return COLORS.sorted;
+      if (algorithm === 'selection' && step.minIndex === idx) return COLORS.min;
+      if (algorithm === 'insertion') {
+        if (typeof step.current === 'number' && step.current === idx) return COLORS.current;
+        if (step.comparing && step.comparing.includes(idx)) {
+          if (step.swapped) return COLORS.swapped;
+          return COLORS.comparing;
+        }
+      }
+      if (algorithm === 'pancake' && step.flipping && step.flipping.includes(idx)) return COLORS.swapped;
+      if (algorithm === 'merge' && step.merging && idx >= step.merging[0] && idx <= step.merging[1]) return COLORS.merging;
+      if ((algorithm === 'quick' || algorithm === 'decide') && step.pivot === idx) return COLORS.pivot;
+      if (step.comparing && step.comparing.includes(idx)) {
+        if (step.swapped) return COLORS.swapped;
+        return COLORS.comparing;
+      }
+      return COLORS.normal;
+    }
+    // Searching
+    if (mode === 'search') {
+      if (step.found === idx) return COLORS.found;
+      if (step.current === idx) return COLORS.current;
+      if (step.path && step.path.includes(idx)) return COLORS.path;
+      if (algorithm === 'binary') {
+        if (step.left === idx) return COLORS.left;
+        if (step.right === idx) return COLORS.right;
+      }
+      return COLORS.normal;
+    }
+    return COLORS.normal;
+  }
+
+  // Current step info
+  const step = steps[currentStep] || null;
+
+  // Collector Card UI for analytics, description, pseudocode
+  const algoKey = algorithm;
+  const info = algorithmInfo[algoKey] || { desc: '', pseudo: '' };
+
+  // In the visualization section, make the bars fill the full width
+  // Calculate bar width based on container width and array length
+  // Use a ref to get the container width
+  const visRef = useRef<HTMLDivElement>(null);
+  const [visWidth, setVisWidth] = useState<number>(800);
+  useEffect(() => {
+    function updateWidth() {
+      if (visRef.current) {
+        setVisWidth(visRef.current.offsetWidth);
+      }
+    }
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
+  const barWidth = Math.max(1, Math.floor((visWidth - 2 * array.length) / array.length));
+
+  // Legend icon mapping
+  const LEGEND_ICONS: Record<string, string> = {
+    Normal: '⬜️',
+    Comparing: '🔄',
+    Swapped: '↔️',
+    Sorted: '✅',
+    Pivot: '🎯',
+    Merging: '🟪',
+    Current: '🔎',
+    Found: '✔️',
+    Path: '🟦',
+    Min: '🔻',
+    Max: '🔺',
+    Left: '⬅️',
+    Right: '➡️',
+    Flipping: '🔃',
+    Digit: '🔢',
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#f8fafc', color: '#222', fontFamily: 'Inter, sans-serif' }}>
+      <header style={{ padding: '2rem 0', textAlign: 'center', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
+        <h1 style={{ fontSize: '2.5rem', fontWeight: 700, letterSpacing: '-0.03em', color: '#2563eb' }}>Algorithm Visualizer</h1>
+        <p style={{ color: '#64748b', fontSize: '1.1rem', marginTop: 8 }}>Step-by-step, interactive, and colorful!</p>
+      </header>
+      {/* Bitonic warning */}
+      {bitonicWarning && (
+        <div style={{ background: '#fef3c7', color: '#b45309', border: '1.5px solid #f59e42', borderRadius: 8, padding: '12px 24px', margin: '16px auto', maxWidth: 600, textAlign: 'center', fontWeight: 600 }}>
+          {bitonicWarning}
+        </div>
+      )}
+      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1rem' }}>
+        {/* Mode and Algorithm Selection */}
+        <div style={{ display: 'flex', gap: 24, marginBottom: 32, alignItems: 'center', justifyContent: 'center' }}>
+          <div>
+            <label style={{ fontWeight: 500, color: '#2563eb' }}>Mode</label><br />
+            <select value={mode} onChange={handleModeChange} style={{ padding: 8, borderRadius: 6, border: '1px solid #cbd5e1', minWidth: 120, fontSize: 16 }}>
+              <option value="sort">Sorting</option>
+              <option value="search">Searching</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ fontWeight: 500, color: '#2563eb' }}>Algorithm</label><br />
+            <select value={algorithm} onChange={handleAlgorithmChange} style={{ padding: 8, borderRadius: 6, border: '1px solid #cbd5e1', minWidth: 180, fontSize: 16 }}>
+              {(mode === 'sort' ? sortingAlgorithms : searchingAlgorithms).map(algo => (
+                <option key={algo.value} value={algo.value}>{algo.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontWeight: 500, color: '#2563eb' }}>Array Size: {arraySize}</label><br />
+            <input type="range" min={5} max={100} value={arraySize} onChange={handleArraySizeChange} style={{ width: 180 }} />
+          </div>
+          <div>
+            <label style={{ fontWeight: 500, color: '#2563eb' }}>Speed: {speed}</label><br />
+            <input type="range" min={10} max={190} value={speed} onChange={handleSpeedChange} style={{ width: 180 }} />
+          </div>
+          {mode === 'search' && (
+            <div>
+              <label style={{ fontWeight: 500, color: '#2563eb' }}>Search Target: {searchTarget}</label><br />
+              <input type="number" min={10} max={500} value={searchTarget} onChange={handleSearchTargetChange} style={{ width: 100, padding: 6, borderRadius: 6, border: '1px solid #cbd5e1' }} />
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={handlePlay} disabled={isPlaying || currentStep >= steps.length - 1} style={{ padding: '0.5rem 1.5rem', borderRadius: 8, background: '#22c55e', color: '#fff', fontWeight: 600, border: 'none', fontSize: 16 }}>Play</button>
+            <button onClick={handlePause} disabled={!isPlaying} style={{ padding: '0.5rem 1.5rem', borderRadius: 8, background: '#fbbf24', color: '#fff', fontWeight: 600, border: 'none', fontSize: 16 }}>Pause</button>
+            <button onClick={handleStep} disabled={isPlaying || currentStep >= steps.length - 1} style={{ padding: '0.5rem 1.5rem', borderRadius: 8, background: '#3b82f6', color: '#fff', fontWeight: 600, border: 'none', fontSize: 16 }}>Step</button>
+            <button onClick={handleReset} style={{ padding: '0.5rem 1.5rem', borderRadius: 8, background: '#64748b', color: '#fff', fontWeight: 600, border: 'none', fontSize: 16 }}>Reset</button>
+            <button onClick={handleShuffle} style={{ padding: '0.5rem 1.5rem', borderRadius: 8, background: '#2563eb', color: '#fff', fontWeight: 600, border: 'none', fontSize: 16 }}>Shuffle</button>
+          </div>
+        </div>
+        {/* Array Visualization */}
+        <section style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px #e0e7ef33', marginBottom: 32 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: '#2563eb', marginBottom: 16 }}>Array Visualization</h2>
+          <div ref={visRef} style={{ width: '100%', display: 'flex', alignItems: 'flex-end', height: 320, gap: 2, overflowX: 'hidden', borderBottom: '1px solid #e5e7eb', paddingBottom: 16, transition: 'all 0.2s' }}>
+            {array.map((bar, idx) => (
+              <div
+                key={bar.id}
+                style={{
+                  width: `${barWidth}px`,
+                  height: `${(bar.value / 500) * 300}px`,
+                  background: getBarColor(idx, step, mode, algorithm) || '#64748b',
+                  borderRadius: '4px 4px 0 0',
+                  border: '1px solid #e5e7eb',
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  justifyContent: 'center',
+                  transition: 'height 0.2s, background 0.2s',
+                  position: 'relative',
+                  zIndex: step && step.found === bar.id ? 2 : 1,
+                }}
+              >
+                {array.length <= 30 && (
+                  <span style={{ position: 'absolute', top: -18, fontSize: 12, color: '#64748b', fontFamily: 'monospace' }}>{bar.value}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+        {/* Legend */}
+        <section style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px #e0e7ef33', marginBottom: 32 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: '#2563eb', marginBottom: 16 }}>Legend</h2>
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', margin: '16px 0 32px 0', flexWrap: 'wrap' }}>
+            {LEGEND[algorithm]?.map(item => (
+              <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 500, color: '#334155', background: '#f1f5f9', borderRadius: 6, padding: '4px 12px', border: `1.5px solid ${item.color}` }}>
+                <span style={{ fontSize: 18 }}>{LEGEND_ICONS[item.label] || '⬜️'}</span>
+                <span style={{ width: 18, height: 18, background: item.color, borderRadius: 4, display: 'inline-block', border: '1.5px solid #e5e7eb', marginRight: 4 }}></span>
+                {item.label}
+              </div>
+            ))}
+          </div>
+        </section>
+        {/* Progress */}
+        <section style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px #e0e7ef33', marginBottom: 32 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: '#2563eb', marginBottom: 16 }}>Progress</h2>
+          <div style={{ display: 'flex', gap: 32, fontSize: 18, color: '#334155', fontWeight: 600 }}>
+            <div>Step: <span style={{ color: '#2563eb' }}>{currentStep + 1} / {steps.length}</span></div>
+            <div>Status: <span style={{ color: (steps[steps.length - 1] && steps[steps.length - 1].sortedIndices && steps[steps.length - 1].sortedIndices.length === array.length) || (mode === 'search' && step && step.found !== null) ? '#22c55e' : '#f59e42' }}>{(steps[steps.length - 1] && steps[steps.length - 1].sortedIndices && steps[steps.length - 1].sortedIndices.length === array.length) || (mode === 'search' && step && step.found !== null) ? 'Done!' : (mode === 'search' ? 'Searching...' : 'Sorting...')}</span></div>
+          </div>
+        </section>
+        {/* Collector Card Section */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #e0e7ff 0%, #f0fdfa 100%)',
+            borderRadius: 18,
+            boxShadow: '0 4px 24px #a5b4fc33',
+            padding: 32,
+            marginBottom: 32,
+            maxWidth: 700,
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            border: '2px solid #6366f1',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: 24, fontWeight: 700, color: '#3730a3', letterSpacing: '-0.01em' }}>{(mode === 'sort' ? sortingAlgorithms : searchingAlgorithms).find(a => a.value === algorithm)?.label}</h3>
+              <span style={{ fontSize: 16, color: '#6366f1', fontWeight: 600 }}>{mode === 'sort' ? 'Sorting' : 'Searching'}</span>
+            </div>
+            <div style={{ fontSize: 16, color: '#334155', marginBottom: 8 }}>{info.desc}</div>
+            <div style={{ display: 'flex', gap: 32, marginBottom: 8 }}>
+              <div style={{ fontSize: 18, color: '#2563eb', fontWeight: 700 }}>Comparisons: <span style={{ color: '#0ea5e9' }}>{analytics.comparisons}</span></div>
+              <div style={{ fontSize: 18, color: '#22c55e', fontWeight: 700 }}>Swaps: <span style={{ color: '#16a34a' }}>{analytics.swaps}</span></div>
+              <div style={{ fontSize: 18, color: '#f59e42', fontWeight: 700 }}>Time: <span style={{ color: '#f59e42' }}>{analytics.time}s</span></div>
+            </div>
+            <div style={{ background: '#f1f5f9', borderRadius: 10, padding: 16, fontFamily: 'monospace', fontSize: 15, color: '#334155', whiteSpace: 'pre', border: '1px solid #c7d2fe' }}>
+              {info.pseudo}
+            </div>
+          </div>
+        </div>
+        {/* Footer */}
+        <footer style={{ textAlign: 'center', marginTop: 48, color: '#64748b', fontSize: 14 }}>
+          <div>Made with <span style={{ color: '#2563eb', fontWeight: 700 }}>React</span> & <span style={{ color: '#2563eb', fontWeight: 700 }}>TypeScript</span> | Step-yielding algorithms in <span style={{ color: '#2563eb', fontWeight: 700 }}>visualAlgorithms.ts</span></div>
+          <div style={{ marginTop: 4 }}>© {new Date().getFullYear()} Algorithm Visualizer. All rights reserved.</div>
+        </footer>
+      </main>
+    </div>
+  );
+};
+
+export default App;
