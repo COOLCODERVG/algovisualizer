@@ -127,3 +127,132 @@ export function pancakeSort(arr: NumArray): NumArray {
   }
   return a;
 }
+
+// Comb Sort
+export function combSort(arr: NumArray): NumArray {
+  const a = arr.slice();
+  let gap = a.length;
+  const shrink = 1.3;
+  let sorted = false;
+  while (!sorted) {
+    gap = Math.floor(gap / shrink);
+    if (gap <= 1) {
+      gap = 1;
+      sorted = true;
+    }
+    for (let i = 0; i + gap < a.length; i++) {
+      if (a[i] > a[i + gap]) {
+        [a[i], a[i + gap]] = [a[i + gap], a[i]];
+        sorted = false;
+      }
+    }
+  }
+  return a;
+}
+
+// Odd-Even Sort
+export function oddEvenSort(arr: NumArray): NumArray {
+  const a = arr.slice();
+  let sorted = false;
+  while (!sorted) {
+    sorted = true;
+    for (let i = 1; i < a.length - 1; i += 2) {
+      if (a[i] > a[i + 1]) {
+        [a[i], a[i + 1]] = [a[i + 1], a[i]];
+        sorted = false;
+      }
+    }
+    for (let i = 0; i < a.length - 1; i += 2) {
+      if (a[i] > a[i + 1]) {
+        [a[i], a[i + 1]] = [a[i + 1], a[i]];
+        sorted = false;
+      }
+    }
+  }
+  return a;
+}
+
+// Shell Sort
+export function shellSort(arr: NumArray): NumArray {
+  const a = arr.slice();
+  let gap = Math.floor(a.length / 2);
+  while (gap > 0) {
+    for (let i = gap; i < a.length; i++) {
+      let temp = a[i];
+      let j = i;
+      while (j >= gap && a[j - gap] > temp) {
+        a[j] = a[j - gap];
+        j -= gap;
+      }
+      a[j] = temp;
+    }
+    gap = Math.floor(gap / 2);
+  }
+  return a;
+}
+
+// Bitonic Sort (for power-of-two length arrays)
+export function bitonicSort(arr: NumArray): NumArray {
+  const a = arr.slice();
+  function bitonicMerge(low: number, cnt: number, dir: boolean) {
+    if (cnt > 1) {
+      const k = Math.floor(cnt / 2);
+      for (let i = low; i < low + k; i++) {
+        if (dir === (a[i] > a[i + k])) {
+          [a[i], a[i + k]] = [a[i + k], a[i]];
+        }
+      }
+      bitonicMerge(low, k, dir);
+      bitonicMerge(low + k, k, dir);
+    }
+  }
+  function bitonicSortHelper(low: number, cnt: number, dir: boolean) {
+    if (cnt > 1) {
+      const k = Math.floor(cnt / 2);
+      bitonicSortHelper(low, k, true);
+      bitonicSortHelper(low + k, k, false);
+      bitonicMerge(low, cnt, dir);
+    }
+  }
+  bitonicSortHelper(0, a.length, true);
+  return a;
+}
+
+// Bogo Sort (WARNING: very slow, only for small arrays)
+export function bogoSort(arr: NumArray): NumArray {
+  function isSorted(a: NumArray) {
+    for (let i = 1; i < a.length; i++) if (a[i - 1] > a[i]) return false;
+    return true;
+  }
+  const a = arr.slice();
+  let tries = 0;
+  while (!isSorted(a) && tries < 100000) {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    tries++;
+  }
+  return a;
+}
+
+// Radix Sort (for non-negative integers)
+export function radixSort(arr: NumArray): NumArray {
+  const a = arr.slice();
+  const max = Math.max(...a);
+  let exp = 1;
+  while (Math.floor(max / exp) > 0) {
+    const output = new Array(a.length).fill(0);
+    const count = new Array(10).fill(0);
+    for (let i = 0; i < a.length; i++) count[Math.floor(a[i] / exp) % 10]++;
+    for (let i = 1; i < 10; i++) count[i] += count[i - 1];
+    for (let i = a.length - 1; i >= 0; i--) {
+      const digit = Math.floor(a[i] / exp) % 10;
+      output[count[digit] - 1] = a[i];
+      count[digit]--;
+    }
+    for (let i = 0; i < a.length; i++) a[i] = output[i];
+    exp *= 10;
+  }
+  return a;
+}
