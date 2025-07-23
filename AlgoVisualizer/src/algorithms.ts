@@ -1,3 +1,7 @@
+// Sorting and Searching Algorithms Library
+// Pure functions, no UI, no visualization
+
+// Type for sorting (array of numbers)
 export type NumArray = number[];
 
 // Bubble Sort
@@ -256,3 +260,128 @@ export function radixSort(arr: NumArray): NumArray {
   }
   return a;
 }
+
+// Decide Sort (Randomized Quick Sort)
+export function decideSort(arr: NumArray): NumArray {
+  if (arr.length <= 1) return arr.slice();
+  const a = arr.slice();
+  const randomIndex = Math.floor(Math.random() * a.length);
+  [a[randomIndex], a[a.length - 1]] = [a[a.length - 1], a[randomIndex]];
+  const pivot = a[a.length - 1];
+  const left = a.filter((v, i) => v < pivot && i !== a.length - 1);
+  const right = a.filter((v, i) => v >= pivot && i !== a.length - 1);
+  return decideSort(left).concat([pivot], decideSort(right));
+}
+
+// Salt Shaker Sort (Shaker/Cocktail Sort)
+export function saltShakerSort(arr: NumArray): NumArray {
+  const a = arr.slice();
+  let left = 0, right = a.length - 1;
+  let swapped = true;
+  while (swapped) {
+    swapped = false;
+    for (let i = left; i < right; i++) {
+      if (a[i] > a[i + 1]) {
+        [a[i], a[i + 1]] = [a[i + 1], a[i]];
+        swapped = true;
+      }
+    }
+    right--;
+    for (let i = right; i > left; i--) {
+      if (a[i - 1] > a[i]) {
+        [a[i - 1], a[i]] = [a[i], a[i - 1]];
+        swapped = true;
+      }
+    }
+    left++;
+  }
+  return a;
+}
+
+// Linear Search
+export function linearSearch(arr: NumArray, target: number): number {
+  for (let i = 0; i < arr.length; i++) if (arr[i] === target) return i;
+  return -1;
+}
+
+// Binary Search (array must be sorted)
+export function binarySearch(arr: NumArray, target: number): number {
+  let left = 0, right = arr.length - 1;
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2);
+    if (arr[mid] === target) return mid;
+    if (arr[mid] < target) left = mid + 1;
+    else right = mid - 1;
+  }
+  return -1;
+}
+
+// Jump Search (array must be sorted)
+export function jumpSearch(arr: NumArray, target: number): number {
+  const n = arr.length;
+  const step = Math.floor(Math.sqrt(n));
+  let prev = 0;
+  while (arr[Math.min(step, n) - 1] < target) {
+    prev = step;
+    if (prev >= n) return -1;
+  }
+  while (arr[prev] < target) {
+    prev++;
+    if (prev === Math.min(step, n)) return -1;
+  }
+  if (arr[prev] === target) return prev;
+  return -1;
+}
+
+// Interpolation Search (array must be sorted)
+export function interpolationSearch(arr: NumArray, target: number): number {
+  let low = 0, high = arr.length - 1;
+  while (low <= high && target >= arr[low] && target <= arr[high]) {
+    if (low === high) {
+      if (arr[low] === target) return low;
+      return -1;
+    }
+    const pos = low + Math.floor(((high - low) / (arr[high] - arr[low])) * (target - arr[low]));
+    if (arr[pos] === target) return pos;
+    if (arr[pos] < target) low = pos + 1;
+    else high = pos - 1;
+  }
+  return -1;
+}
+
+// Exponential Search (array must be sorted)
+export function exponentialSearch(arr: NumArray, target: number): number {
+  if (arr[0] === target) return 0;
+  let i = 1;
+  while (i < arr.length && arr[i] <= target) i *= 2;
+  return binarySearch(arr.slice(Math.floor(i / 2), Math.min(i, arr.length)), target);
+}
+
+// Fibonacci Search (array must be sorted)
+export function fibonacciSearch(arr: NumArray, target: number): number {
+  const n = arr.length;
+  let fibMMm2 = 0, fibMMm1 = 1, fibM = fibMMm2 + fibMMm1;
+  while (fibM < n) {
+    fibMMm2 = fibMMm1;
+    fibMMm1 = fibM;
+    fibM = fibMMm2 + fibMMm1;
+  }
+  let offset = -1;
+  while (fibM > 1) {
+    const i = Math.min(offset + fibMMm2, n - 1);
+    if (arr[i] < target) {
+      fibM = fibMMm1;
+      fibMMm1 = fibMMm2;
+      fibMMm2 = fibM - fibMMm1;
+      offset = i;
+    } else if (arr[i] > target) {
+      fibM = fibMMm2;
+      fibMMm1 = fibMMm1 - fibMMm2;
+      fibMMm2 = fibM - fibMMm1;
+    } else {
+      return i;
+    }
+  }
+  if (fibMMm1 && offset + 1 < n && arr[offset + 1] === target) return offset + 1;
+  return -1;
+} 
