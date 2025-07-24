@@ -1,4 +1,3 @@
-
 // Sorting and Searching Algorithms Library
 // Pure functions, no UI, no visualization
 
@@ -299,6 +298,12 @@ export function saltShakerSort(arr: NumArray): NumArray {
   return a;
 }
 
+// Linear Search
+export function linearSearch(arr: NumArray, target: number): number {
+  for (let i = 0; i < arr.length; i++) if (arr[i] === target) return i;
+  return -1;
+}
+
 // Binary Search (array must be sorted)
 export function binarySearch(arr: NumArray, target: number): number {
   let left = 0, right = arr.length - 1;
@@ -308,6 +313,23 @@ export function binarySearch(arr: NumArray, target: number): number {
     if (arr[mid] < target) left = mid + 1;
     else right = mid - 1;
   }
+  return -1;
+}
+
+// Jump Search (array must be sorted)
+export function jumpSearch(arr: NumArray, target: number): number {
+  const n = arr.length;
+  const step = Math.floor(Math.sqrt(n));
+  let prev = 0;
+  while (arr[Math.min(step, n) - 1] < target) {
+    prev = step;
+    if (prev >= n) return -1;
+  }
+  while (arr[prev] < target) {
+    prev++;
+    if (prev === Math.min(step, n)) return -1;
+  }
+  if (arr[prev] === target) return prev;
   return -1;
 }
 
@@ -334,3 +356,32 @@ export function exponentialSearch(arr: NumArray, target: number): number {
   while (i < arr.length && arr[i] <= target) i *= 2;
   return binarySearch(arr.slice(Math.floor(i / 2), Math.min(i, arr.length)), target);
 }
+
+// Fibonacci Search (array must be sorted)
+export function fibonacciSearch(arr: NumArray, target: number): number {
+  const n = arr.length;
+  let fibMMm2 = 0, fibMMm1 = 1, fibM = fibMMm2 + fibMMm1;
+  while (fibM < n) {
+    fibMMm2 = fibMMm1;
+    fibMMm1 = fibM;
+    fibM = fibMMm2 + fibMMm1;
+  }
+  let offset = -1;
+  while (fibM > 1) {
+    const i = Math.min(offset + fibMMm2, n - 1);
+    if (arr[i] < target) {
+      fibM = fibMMm1;
+      fibMMm1 = fibMMm2;
+      fibMMm2 = fibM - fibMMm1;
+      offset = i;
+    } else if (arr[i] > target) {
+      fibM = fibMMm2;
+      fibMMm1 = fibMMm1 - fibMMm2;
+      fibMMm2 = fibM - fibMMm1;
+    } else {
+      return i;
+    }
+  }
+  if (fibMMm1 && offset + 1 < n && arr[offset + 1] === target) return offset + 1;
+  return -1;
+} 
