@@ -233,3 +233,234 @@ export function* quickSortSteps(input: number[]): Generator<QuickSortStep> {
   yield* quickSortHelper(0, n - 1);
   yield { array: arr.slice(), comparing: null, pivot: null, sortedIndices: Array.from({ length: n }, (_, i) => i), swapped: false };
 }
+
+// --- Heap Sort Step Generator ---
+export interface HeapSortStep {
+  array: number[];
+  comparing: [number, number] | null;
+  sortedIndices: number[];
+  swapped: boolean;
+}
+
+export function* heapSortSteps(input: number[]): Generator<HeapSortStep> {
+  const arr = input.slice();
+  const n = arr.length;
+  const sortedIndices: number[] = [];
+  function* heapify(n: number, i: number): Generator<HeapSortStep> {
+    let largest = i;
+    const left = 2 * i + 1;
+    const right = 2 * i + 2;
+    if (left < n) {
+      yield { array: arr.slice(), comparing: [largest, left], sortedIndices: sortedIndices.slice(), swapped: false };
+      if (arr[left] > arr[largest]) largest = left;
+    }
+    if (right < n) {
+      yield { array: arr.slice(), comparing: [largest, right], sortedIndices: sortedIndices.slice(), swapped: false };
+      if (arr[right] > arr[largest]) largest = right;
+    }
+    if (largest !== i) {
+      [arr[i], arr[largest]] = [arr[largest], arr[i]];
+      yield { array: arr.slice(), comparing: [i, largest], sortedIndices: sortedIndices.slice(), swapped: true };
+      yield* heapify(n, largest);
+    }
+  }
+  for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+    yield* heapify(n, i);
+  }
+  for (let i = n - 1; i > 0; i--) {
+    [arr[0], arr[i]] = [arr[i], arr[0]];
+    sortedIndices.unshift(i);
+    yield { array: arr.slice(), comparing: [0, i], sortedIndices: sortedIndices.slice(), swapped: true };
+    yield* heapify(i, 0);
+  }
+  yield { array: arr.slice(), comparing: null, sortedIndices: Array.from({ length: n }, (_, i) => i), swapped: false };
+}
+
+// --- Gnome Sort Step Generator ---
+export interface GnomeSortStep {
+  array: number[];
+  comparing: [number, number] | null;
+  sortedIndices: number[];
+  swapped: boolean;
+}
+
+export function* gnomeSortSteps(input: number[]): Generator<GnomeSortStep> {
+  const arr = input.slice();
+  const n = arr.length;
+  let i = 0;
+  while (i < n) {
+    if (i === 0 || arr[i] >= arr[i - 1]) {
+      i++;
+    } else {
+      [arr[i], arr[i - 1]] = [arr[i - 1], arr[i]];
+      yield { array: arr.slice(), comparing: [i, i - 1], sortedIndices: [], swapped: true };
+      i--;
+    }
+  }
+  yield { array: arr.slice(), comparing: null, sortedIndices: Array.from({ length: n }, (_, i) => i), swapped: false };
+}
+
+// --- Pancake Sort Step Generator ---
+export interface PancakeSortStep {
+  array: number[];
+  flipping: [number, number] | null;
+  sortedIndices: number[];
+}
+
+export function* pancakeSortSteps(input: number[]): Generator<PancakeSortStep> {
+  const arr = input.slice();
+  const n = arr.length;
+  let numSorted = 0;
+  function flip(end: number) {
+    let start = 0;
+    while (start < end) {
+      [arr[start], arr[end]] = [arr[end], arr[start]];
+      start++;
+      end--;
+    }
+  }
+  for (let currSize = n; currSize > 1; currSize--) {
+    let mi = 0;
+    for (let i = 0; i < currSize; i++) if (arr[i] > arr[mi]) mi = i;
+    if (mi !== currSize - 1) {
+      flip(mi);
+      yield { array: arr.slice(), flipping: [0, mi], sortedIndices: Array.from({ length: numSorted }, (_, i) => n - 1 - i) };
+      flip(currSize - 1);
+      yield { array: arr.slice(), flipping: [0, currSize - 1], sortedIndices: Array.from({ length: numSorted }, (_, i) => n - 1 - i) };
+    }
+    numSorted++;
+  }
+  yield { array: arr.slice(), flipping: null, sortedIndices: Array.from({ length: n }, (_, i) => i) };
+}
+
+// --- Comb Sort Step Generator ---
+export interface CombSortStep {
+  array: number[];
+  comparing: [number, number] | null;
+  sortedIndices: number[];
+  swapped: boolean;
+}
+
+export function* combSortSteps(input: number[]): Generator<CombSortStep> {
+  const arr = input.slice();
+  const n = arr.length;
+  let gap = n;
+  const shrink = 1.3;
+  let sorted = false;
+  while (!sorted) {
+    gap = Math.floor(gap / shrink);
+    if (gap <= 1) {
+      gap = 1;
+      sorted = true;
+    }
+    for (let i = 0; i + gap < n; i++) {
+      yield { array: arr.slice(), comparing: [i, i + gap], sortedIndices: [], swapped: false };
+      if (arr[i] > arr[i + gap]) {
+        [arr[i], arr[i + gap]] = [arr[i + gap], arr[i]];
+        sorted = false;
+        yield { array: arr.slice(), comparing: [i, i + gap], sortedIndices: [], swapped: true };
+      }
+    }
+  }
+  yield { array: arr.slice(), comparing: null, sortedIndices: Array.from({ length: n }, (_, i) => i), swapped: false };
+}
+
+// --- Odd-Even Sort Step Generator ---
+export interface OddEvenSortStep {
+  array: number[];
+  comparing: [number, number] | null;
+  sortedIndices: number[];
+  swapped: boolean;
+}
+
+export function* oddEvenSortSteps(input: number[]): Generator<OddEvenSortStep> {
+  const arr = input.slice();
+  const n = arr.length;
+  let sorted = false;
+  while (!sorted) {
+    sorted = true;
+    for (let i = 1; i < n - 1; i += 2) {
+      yield { array: arr.slice(), comparing: [i, i + 1], sortedIndices: [], swapped: false };
+      if (arr[i] > arr[i + 1]) {
+        [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]];
+        sorted = false;
+        yield { array: arr.slice(), comparing: [i, i + 1], sortedIndices: [], swapped: true };
+      }
+    }
+    for (let i = 0; i < n - 1; i += 2) {
+      yield { array: arr.slice(), comparing: [i, i + 1], sortedIndices: [], swapped: false };
+      if (arr[i] > arr[i + 1]) {
+        [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]];
+        sorted = false;
+        yield { array: arr.slice(), comparing: [i, i + 1], sortedIndices: [], swapped: true };
+      }
+    }
+  }
+  yield { array: arr.slice(), comparing: null, sortedIndices: Array.from({ length: n }, (_, i) => i), swapped: false };
+}
+
+// --- Shell Sort Step Generator ---
+export interface ShellSortStep {
+  array: number[];
+  comparing: [number, number] | null;
+  sortedIndices: number[];
+  swapped: boolean;
+}
+
+export function* shellSortSteps(input: number[]): Generator<ShellSortStep> {
+  const arr = input.slice();
+  const n = arr.length;
+  let gap = Math.floor(n / 2);
+  while (gap > 0) {
+    for (let i = gap; i < n; i++) {
+      let temp = arr[i];
+      let j = i;
+      while (j >= gap && arr[j - gap] > temp) {
+        yield { array: arr.slice(), comparing: [j, j - gap], sortedIndices: [], swapped: true };
+        arr[j] = arr[j - gap];
+        j -= gap;
+      }
+      arr[j] = temp;
+      yield { array: arr.slice(), comparing: [j, i], sortedIndices: [], swapped: false };
+    }
+    gap = Math.floor(gap / 2);
+  }
+  yield { array: arr.slice(), comparing: null, sortedIndices: Array.from({ length: n }, (_, i) => i), swapped: false };
+}
+
+// --- Bitonic Sort Step Generator ---
+export interface BitonicSortStep {
+  array: number[];
+  comparing: [number, number] | null;
+  sortedIndices: number[];
+  swapped: boolean;
+}
+
+export function* bitonicSortSteps(input: number[]): Generator<BitonicSortStep> {
+  const arr = input.slice();
+  const n = arr.length;
+  function* bitonicMerge(low: number, cnt: number, dir: boolean): Generator<BitonicSortStep> {
+    if (cnt > 1) {
+      const k = Math.floor(cnt / 2);
+      for (let i = low; i < low + k; i++) {
+        yield { array: arr.slice(), comparing: [i, i + k], sortedIndices: [], swapped: false };
+        if (dir === (arr[i] > arr[i + k])) {
+          [arr[i], arr[i + k]] = [arr[i + k], arr[i]];
+          yield { array: arr.slice(), comparing: [i, i + k], sortedIndices: [], swapped: true };
+        }
+      }
+      yield* bitonicMerge(low, k, dir);
+      yield* bitonicMerge(low + k, k, dir);
+    }
+  }
+  function* bitonicSortHelper(low: number, cnt: number, dir: boolean): Generator<BitonicSortStep> {
+    if (cnt > 1) {
+      const k = Math.floor(cnt / 2);
+      yield* bitonicSortHelper(low, k, true);
+      yield* bitonicSortHelper(low + k, k, false);
+      yield* bitonicMerge(low, cnt, dir);
+    }
+  }
+  yield* bitonicSortHelper(0, n, true);
+  yield { array: arr.slice(), comparing: null, sortedIndices: Array.from({ length: n }, (_, i) => i), swapped: false };
+}
